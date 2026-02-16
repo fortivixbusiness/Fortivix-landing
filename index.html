@@ -2438,7 +2438,7 @@
         scroll-behavior: smooth;
       }
 
-      /* Disable background-attachment: fixed on mobile to prevent white flash */
+      /* Disable background-attachment: fixed on mobile to prevent white flash and scroll jitter */
       * {
         background-attachment: scroll !important;
       }
@@ -2465,6 +2465,20 @@
       .price-card {
         background: var(--white) !important;
         opacity: 1 !important;
+        position: relative;
+      }
+
+      /* Ensure pseudo-elements are behind content */
+      .price-card::before,
+      .price-card::after {
+        z-index: 0 !important;
+      }
+
+      /* Ensure all card content is above pseudo-elements */
+      .price-card > * {
+        position: relative;
+        z-index: 1 !important;
+        opacity: 1 !important;
       }
 
       .how-mode {
@@ -2474,29 +2488,39 @@
       /* Fix pricing card text/price contrast on mobile */
       /* White cards - dark text for prices */
       .price-card:not(.featured):not(.armed) .price-amount {
-        color: #0B0F1A !important;
+        color: #0b1020 !important;
         opacity: 1 !important;
         font-weight: 800 !important;
+        position: relative;
+        z-index: 2 !important;
       }
 
       .price-card:not(.featured):not(.armed) .price-per {
         color: #334155 !important;
         opacity: 1 !important;
+        position: relative;
+        z-index: 2 !important;
       }
 
       .price-card:not(.featured):not(.armed) .price-desc {
         color: #334155 !important;
         opacity: 1 !important;
+        position: relative;
+        z-index: 2 !important;
       }
 
       .price-card:not(.featured):not(.armed) .price-features li {
         color: #334155 !important;
         opacity: 1 !important;
+        position: relative;
+        z-index: 2 !important;
       }
 
       .price-card:not(.featured):not(.armed) h3 {
-        color: #0B0F1A !important;
+        color: #0b1020 !important;
         opacity: 1 !important;
+        position: relative;
+        z-index: 2 !important;
       }
 
       /* Dark cards (featured/armed) - white text for prices */
@@ -2505,29 +2529,48 @@
         color: #FFFFFF !important;
         opacity: 1 !important;
         font-weight: 800 !important;
+        position: relative;
+        z-index: 2 !important;
       }
 
       .price-card.featured .price-per,
       .price-card.armed .price-per {
         color: rgba(255, 255, 255, 0.80) !important;
         opacity: 1 !important;
+        position: relative;
+        z-index: 2 !important;
       }
 
       .price-card.featured .price-desc,
       .price-card.armed .price-desc {
         color: rgba(255, 255, 255, 0.80) !important;
         opacity: 1 !important;
+        position: relative;
+        z-index: 2 !important;
       }
 
       .price-card.featured .price-features li,
       .price-card.armed .price-features li {
         color: rgba(255, 255, 255, 0.80) !important;
         opacity: 1 !important;
+        position: relative;
+        z-index: 2 !important;
       }
 
       .price-card.featured h3,
       .price-card.armed h3 {
         color: #FFFFFF !important;
+        opacity: 1 !important;
+        position: relative;
+        z-index: 2 !important;
+      }
+
+      /* Force reveal cards to be visible on mobile */
+      .price-card.reveal {
+        opacity: 1 !important;
+      }
+
+      .price-card[data-reveal="item"] {
         opacity: 1 !important;
       }
 
