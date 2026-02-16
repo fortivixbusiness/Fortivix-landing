@@ -2464,10 +2464,71 @@
       /* Ensure white cards maintain white background on mobile */
       .price-card {
         background: var(--white) !important;
+        opacity: 1 !important;
       }
 
       .how-mode {
         background: var(--white) !important;
+      }
+
+      /* Fix pricing card text/price contrast on mobile */
+      /* White cards - dark text for prices */
+      .price-card:not(.featured):not(.armed) .price-amount {
+        color: #0B0F1A !important;
+        opacity: 1 !important;
+        font-weight: 800 !important;
+      }
+
+      .price-card:not(.featured):not(.armed) .price-per {
+        color: #334155 !important;
+        opacity: 1 !important;
+      }
+
+      .price-card:not(.featured):not(.armed) .price-desc {
+        color: #334155 !important;
+        opacity: 1 !important;
+      }
+
+      .price-card:not(.featured):not(.armed) .price-features li {
+        color: #334155 !important;
+        opacity: 1 !important;
+      }
+
+      .price-card:not(.featured):not(.armed) h3 {
+        color: #0B0F1A !important;
+        opacity: 1 !important;
+      }
+
+      /* Dark cards (featured/armed) - white text for prices */
+      .price-card.featured .price-amount,
+      .price-card.armed .price-amount {
+        color: #FFFFFF !important;
+        opacity: 1 !important;
+        font-weight: 800 !important;
+      }
+
+      .price-card.featured .price-per,
+      .price-card.armed .price-per {
+        color: rgba(255, 255, 255, 0.80) !important;
+        opacity: 1 !important;
+      }
+
+      .price-card.featured .price-desc,
+      .price-card.armed .price-desc {
+        color: rgba(255, 255, 255, 0.80) !important;
+        opacity: 1 !important;
+      }
+
+      .price-card.featured .price-features li,
+      .price-card.armed .price-features li {
+        color: rgba(255, 255, 255, 0.80) !important;
+        opacity: 1 !important;
+      }
+
+      .price-card.featured h3,
+      .price-card.armed h3 {
+        color: #FFFFFF !important;
+        opacity: 1 !important;
       }
 
       /* Ensure pricing section maintains light background */
