@@ -2370,10 +2370,23 @@
       }
 
       .hero h1 {
-        font-size: 2.25rem;
+        font-size: 2.1rem;
         word-wrap: break-word;
         overflow-wrap: break-word;
         hyphens: auto;
+        line-height: 1.1;
+        margin-bottom: 20px;
+      }
+
+      .hero-sub {
+        font-size: 1.05rem;
+        line-height: 1.65;
+        margin-bottom: 24px;
+      }
+
+      .hero-trust {
+        margin-top: 16px !important;
+        margin-bottom: 24px !important;
       }
 
       .section {
@@ -2743,9 +2756,25 @@
         transform: translateZ(0);
       }
 
+      /* GPU-friendly animations - use transform/opacity only */
+      .reveal,
+      [data-reveal],
+      .anim-fade-up {
+        will-change: transform, opacity;
+        transform: translateZ(0);
+      }
+
+      .reveal.visible,
+      [data-reveal].visible,
+      .anim-fade-up {
+        transform: translateZ(0);
+      }
+
       /* Reduce blur filters on mobile */
       .hero-glow {
         filter: blur(30px) !important;
+        will-change: transform;
+        transform: translateZ(0);
       }
 
       .nav.scrolled {
@@ -2770,6 +2799,19 @@
       .section {
         contain: layout paint;
         content-visibility: auto;
+      }
+
+      /* Prevent background-attachment: fixed on mobile */
+      * {
+        background-attachment: scroll !important;
+      }
+
+      /* Ensure no layout-thrashing properties in animations */
+      .reveal,
+      [data-reveal],
+      .anim-fade-up {
+        transition: opacity 0.6s cubic-bezier(0.16, 1, 0.3, 1),
+                    transform 0.6s cubic-bezier(0.16, 1, 0.3, 1);
       }
 
       /* ─── MOBILE TYPOGRAPHY + SPACING CLEANUP ─── */
@@ -2809,8 +2851,63 @@
 
       /* ─── HERO BADGE POSITIONING ─── */
       .hero-badge {
-        margin-bottom: 16px !important;
-        margin-top: -8px !important;
+        margin-bottom: 20px !important;
+        margin-top: 0 !important;
+      }
+
+      /* ─── CTA HIERARCHY (MOBILE ONLY) ─── */
+      /* Swap button order: Request Security first (primary), Join as Guard second (secondary) */
+      .hero-buttons {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+
+      /* Make "Request Security" primary (gradient fill) */
+      .hero-buttons .btn-secondary {
+        order: 1;
+        background: linear-gradient(135deg, #9333EA, #4F46E5) !important;
+        border: none !important;
+        color: #FFFFFF !important;
+        box-shadow: 0 0 calc(20px * var(--aiGlow)) rgba(147, 51, 234, calc(0.25 * var(--aiGlow)));
+      }
+
+      .hero-buttons .btn-secondary::before {
+        content: '';
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(135deg, rgba(255, 255, 255, 0.15), transparent);
+        opacity: 0;
+        transition: opacity 0.22s cubic-bezier(0.2, 0.8, 0.2, 1);
+      }
+
+      .hero-buttons .btn-secondary:hover::before {
+        opacity: 1;
+      }
+
+      .hero-buttons .btn-secondary:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 12px 32px rgba(147, 51, 234, 0.4);
+      }
+
+      /* Make "Join as a Guard" secondary (outline/subdued) */
+      .hero-buttons .btn-primary {
+        order: 2;
+        background: rgba(255, 255, 255, 0.06) !important;
+        border: 1px solid rgba(255, 255, 255, 0.12) !important;
+        color: #FFFFFF !important;
+        box-shadow: none !important;
+      }
+
+      .hero-buttons .btn-primary::before {
+        display: none;
+      }
+
+      .hero-buttons .btn-primary:hover {
+        background: rgba(255, 255, 255, 0.1) !important;
+        border-color: rgba(255, 255, 255, 0.2) !important;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
       }
 
       /* ─── AI SECTION PILL BUTTONS ─── */
