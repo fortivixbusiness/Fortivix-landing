@@ -2359,16 +2359,14 @@
       }
 
       .features-grid {
-        grid-template-columns: 1fr 1fr;
-        gap: 16px;
+        grid-template-columns: 1fr;
       }
 
       .pricing-grid {
-        grid-template-columns: 1fr 1fr;
-        gap: 16px;
-        max-width: 100%;
-        margin-left: 0;
-        margin-right: 0;
+        grid-template-columns: 1fr;
+        max-width: 420px;
+        margin-left: auto;
+        margin-right: auto;
       }
 
       .hero h1 {
@@ -2453,11 +2451,7 @@
         background: rgba(6, 10, 20, 0.98) !important;
       }
 
-      /* Ensure all sections have explicit backgrounds */
-      .section {
-        background-color: var(--bg-dark);
-      }
-
+      /* Ensure hero and dark sections have dark background */
       .hero {
         background: var(--bg-dark) !important;
         min-height: 100vh;
@@ -2467,10 +2461,21 @@
         background-color: var(--bg-dark) !important;
       }
 
+      /* Ensure white cards maintain white background on mobile */
+      .price-card {
+        background: var(--white) !important;
+      }
+
+      .how-mode {
+        background: var(--white) !important;
+      }
+
+      /* Ensure pricing section maintains light background */
       .pricing-section {
         background: var(--bg-light) !important;
       }
 
+      /* Ensure how-section and guards-section maintain their gradients */
       .how-section {
         background: linear-gradient(180deg, var(--bg-light), var(--bg-blue)) !important;
       }
@@ -2484,23 +2489,13 @@
         display: flex !important;
         visibility: visible !important;
         opacity: 1 !important;
-        margin-top: 40px;
-        margin-bottom: 20px;
+        margin-top: 48px;
         width: 100%;
         max-width: 360px;
         margin-left: auto;
         margin-right: auto;
         position: relative;
         z-index: 1;
-        overflow: visible !important;
-      }
-
-      .hero-content {
-        overflow: visible !important;
-      }
-
-      .hero {
-        overflow: visible !important;
       }
 
       .hero-phone {
@@ -2509,8 +2504,6 @@
         height: auto;
         min-height: 400px;
         margin: 0 auto;
-        transform: translateZ(0) scale(0.92);
-        will-change: transform;
         display: block !important;
         visibility: visible !important;
         opacity: 1 !important;
@@ -2526,63 +2519,9 @@
         filter: blur(8px);
       }
 
-      /* GPU optimizations to reduce scroll jitter */
-      .hero-visual,
-      .hero-phone,
-      .card,
-      .price-card,
-      .feature-card,
-      .section {
-        will-change: transform;
-        transform: translateZ(0);
-      }
-
-      /* Reduce box-shadow intensity on mobile (15-20% reduction) */
-      .price-card {
-        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.06), 0 2px 8px rgba(0, 0, 0, 0.05),
-                    0 0 calc(20px * var(--aiGlow)) rgba(147, 51, 234, calc(0.12 * var(--aiGlow))) !important;
-      }
-
-      .feature-card {
-        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.14), 0 2px 8px rgba(0, 0, 0, 0.10) !important;
-      }
-
-      .hero-phone {
-        box-shadow: 0 32px 64px rgba(0, 0, 0, 0.48),
-                    0 0 0 1px rgba(255, 255, 255, 0.03),
-                    inset 0 1px 0 rgba(255, 255, 255, 0.04),
-                    0 0 calc(26px * var(--aiGlow)) rgba(147, 51, 234, calc(0.15 * var(--aiGlow))) !important;
-      }
-
-      /* Improve text contrast in pricing section (light background) */
-      .pricing-section h2,
-      .pricing-section .section-title {
-        color: rgba(15, 23, 42, 0.95) !important;
-        font-weight: 800;
-      }
-
-      .pricing-section p,
-      .pricing-section .section-subtitle {
-        color: rgba(15, 23, 42, 0.85) !important;
-      }
-
-      .pricing-section .price-card h3,
-      .pricing-section .price-card .price-desc,
-      .pricing-section .price-card .price-amount,
-      .pricing-section .price-card .price-per {
-        color: var(--slate-900) !important;
-      }
-
       /* Ensure no horizontal overflow */
       * {
         max-width: 100%;
-      }
-
-      .container,
-      .section,
-      .hero-content {
-        max-width: 100vw;
-        overflow-x: hidden;
       }
     }
   </style>
