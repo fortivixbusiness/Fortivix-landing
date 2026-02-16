@@ -2377,7 +2377,7 @@
       }
 
       .section {
-        padding: 80px 0;
+        padding: 68px 0;
       }
 
       .how-mode {
@@ -2733,6 +2733,99 @@
       /* Ensure no horizontal overflow */
       * {
         max-width: 100%;
+      }
+
+      /* ─── MOBILE PERFORMANCE OPTIMIZATIONS ─── */
+      /* Reduce expensive effects on mobile to prevent scroll jitter */
+      .hero-grid-bg,
+      .hero::before {
+        will-change: transform;
+        transform: translateZ(0);
+      }
+
+      /* Reduce blur filters on mobile */
+      .hero-glow {
+        filter: blur(30px) !important;
+      }
+
+      .nav.scrolled {
+        backdrop-filter: none !important;
+        -webkit-backdrop-filter: none !important;
+      }
+
+      /* Reduce expensive box-shadows on large containers */
+      .section {
+        box-shadow: none !important;
+      }
+
+      .hero {
+        box-shadow: none !important;
+      }
+
+      /* Performance hints for smooth scrolling */
+      html {
+        -webkit-overflow-scrolling: touch;
+      }
+
+      .section {
+        contain: layout paint;
+        content-visibility: auto;
+      }
+
+      /* ─── MOBILE TYPOGRAPHY + SPACING CLEANUP ─── */
+      /* Reduce body font size slightly (6%) */
+      body {
+        font-size: 15px;
+      }
+
+      /* Improve line-height and letter spacing */
+      p {
+        line-height: 1.65;
+        letter-spacing: 0.01em;
+      }
+
+      /* Adjust heading sizes slightly if needed */
+      .section-title {
+        font-size: clamp(1.75rem, 4vw, 2.5rem) !important;
+        line-height: 1.2;
+        letter-spacing: -0.02em;
+      }
+
+      .section-subtitle {
+        font-size: 0.95rem;
+        line-height: 1.7;
+      }
+
+      /* Section padding already set above (68px) */
+
+      /* Preserve hero breathing room */
+      .hero {
+        padding: 0 !important;
+      }
+
+      .hero-content {
+        padding: 100px 0 70px !important;
+      }
+
+      /* ─── HERO BADGE POSITIONING ─── */
+      .hero-badge {
+        margin-bottom: 16px !important;
+        margin-top: -8px !important;
+      }
+
+      /* ─── AI SECTION PILL BUTTONS ─── */
+      /* Target AI section pills specifically */
+      .price-tag[style*="border-radius: 100px"] {
+        border-radius: 8px !important;
+        font-weight: 600 !important;
+        padding: 5px 14px !important;
+        font-size: 0.68rem !important;
+        letter-spacing: 0.05em !important;
+      }
+
+      /* Ensure consistent spacing between AI pills */
+      .price-tag + .price-tag {
+        margin-left: 8px;
       }
     }
   </style>
@@ -3607,28 +3700,35 @@
       ensureHeroVisible();
     }
     
+    let scrollTicking = false;
     window.addEventListener('scroll', () => {
-      const currentScrollY = Math.max(0, Math.min(window.scrollY, document.documentElement.scrollHeight)); // Clamp to valid range
-      
-      // Top reset: ensure hero and critical top elements are always visible at scroll top
-      if (currentScrollY <= 5) {
-        ensureHeroVisible();
-      }
-      
-      if (currentScrollY < 80 && topResetScrollY >= 80) {
-        // Scrolled back to top - reset all animations (except hero which is handled above)
-        document.querySelectorAll('.reveal.visible').forEach(el => {
-          // Don't reset hero at top
-          if (!el.classList.contains('hero') && currentScrollY <= 5) {
-            el.classList.remove('visible');
+      if (!scrollTicking) {
+        window.requestAnimationFrame(() => {
+          const currentScrollY = Math.max(0, Math.min(window.scrollY, document.documentElement.scrollHeight)); // Clamp to valid range
+          
+          // Top reset: ensure hero and critical top elements are always visible at scroll top
+          if (currentScrollY <= 5) {
+            ensureHeroVisible();
           }
+          
+          if (currentScrollY < 80 && topResetScrollY >= 80) {
+            // Scrolled back to top - reset all animations (except hero which is handled above)
+            document.querySelectorAll('.reveal.visible').forEach(el => {
+              // Don't reset hero at top
+              if (!el.classList.contains('hero') && currentScrollY <= 5) {
+                el.classList.remove('visible');
+              }
+            });
+            document.querySelectorAll('[data-stagger="item"].pop-in').forEach(el => {
+              el.classList.remove('pop-in');
+            });
+          }
+          topResetScrollY = currentScrollY;
+          scrollTicking = false;
         });
-        document.querySelectorAll('[data-stagger="item"].pop-in').forEach(el => {
-          el.classList.remove('pop-in');
-        });
+        scrollTicking = true;
       }
-      topResetScrollY = currentScrollY;
-    });
+    }, { passive: true });
     
     const revealElements = document.querySelectorAll('.reveal');
     const revealObserver = new IntersectionObserver((entries) => {
@@ -3646,7 +3746,8 @@
         }
       });
     }, { 
-      threshold: 0.2
+      threshold: 0.15,
+      rootMargin: '0px 0px -50px 0px'
     });
 
     revealElements.forEach(el => revealObserver.observe(el));
@@ -3692,7 +3793,7 @@
             });
           }
         });
-      }, { threshold: 0.2 });
+      }, { threshold: 0.15, rootMargin: '0px 0px -30px 0px' });
       
       sectionObserver.observe(section);
     });
