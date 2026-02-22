@@ -1,0 +1,16 @@
+[build]
+  base = "app"
+  command = "npm install && npm run build"
+  publish = "dist"
+
+# SPA-style redirects for the onboarding React app
+[[redirects]]
+  from = "/onboarding/*"
+  to = "/onboarding.html"
+  status = 200
+
+# Ensure clean URLs for the landing page
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
