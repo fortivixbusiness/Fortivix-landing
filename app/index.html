@@ -1,5 +1,4 @@
 <!DOCTYPE html>
-<!-- saved from url=(0050)file:///Users/donji/Downloads/fortivix-hybrid.html -->
 <html lang="en">
 
 <head>
@@ -3971,39 +3970,6 @@
       }
     }
 
-    // ─── SCROLL VELOCITY GLOW ───
-    if (!prefersReducedMotion) {
-      let lastScrollY = window.scrollY;
-      let lastScrollTime = Date.now();
-      let scrollVelocity = 0;
-      let rafId = null;
-
-      function updateGlowIntensity() {
-        const currentScrollY = window.scrollY;
-        const currentTime = Date.now();
-        const deltaY = Math.abs(currentScrollY - lastScrollY);
-        const deltaTime = Math.max(currentTime - lastScrollTime, 1);
-
-        // Calculate velocity (pixels per millisecond, clamped)
-        scrollVelocity = Math.min(deltaY / deltaTime * 10, 1);
-
-        // Apply to CSS variable (subtle, tasteful glow)
-        const glowValue = scrollVelocity * 0.3; // Keep it subtle
-        document.documentElement.style.setProperty('--glow-intensity', glowValue);
-        document.documentElement.style.setProperty('--aiGlow', glowValue);
-
-        lastScrollY = currentScrollY;
-        lastScrollTime = currentTime;
-        rafId = null;
-      }
-
-      window.addEventListener('scroll', () => {
-        if (!rafId) {
-          rafId = requestAnimationFrame(updateGlowIntensity);
-        }
-      }, { passive: true });
-    }
-
     // ─── SCROLLSPY ACTIVE INDICATOR ───
     const sections = document.querySelectorAll('section[id]');
     const navLinks = document.querySelectorAll('.nav-links a[href*="#"]');
@@ -4114,10 +4080,11 @@
       if (prefersReducedMotion) return;
 
       // Add tap flash visual feedback
-      if (e && e.currentTarget) {
-        e.currentTarget.classList.add('tap-flash');
+      const target = e && e.currentTarget;
+      if (target) {
+        target.classList.add('tap-flash');
         setTimeout(() => {
-          e.currentTarget.classList.remove('tap-flash');
+          target.classList.remove('tap-flash');
         }, 150);
       }
 
@@ -4229,7 +4196,15 @@
     }
 
     // ─── MICRO PARALLAX FOR PHONE MOCKUP (DESKTOP ONLY) ───
+    let parallaxCleanup = null;
+
     function initParallax() {
+      // Clean up previous listeners before adding new ones
+      if (parallaxCleanup) {
+        parallaxCleanup();
+        parallaxCleanup = null;
+      }
+
       if (prefersReducedMotion || window.innerWidth <= 768) return;
 
       const phoneMockup = document.querySelector('.hero-phone');
@@ -4260,16 +4235,22 @@
         });
       }
 
-      phoneMockup.addEventListener('mouseenter', () => {
-        isHovering = true;
-      });
-
-      phoneMockup.addEventListener('mouseleave', () => {
+      const onEnter = () => { isHovering = true; };
+      const onLeave = () => {
         isHovering = false;
         phoneMockup.style.transform = 'translate(0, 0)';
-      });
+      };
 
+      phoneMockup.addEventListener('mouseenter', onEnter);
+      phoneMockup.addEventListener('mouseleave', onLeave);
       document.addEventListener('mousemove', updateParallax);
+
+      // Store cleanup function to remove listeners on next init
+      parallaxCleanup = () => {
+        phoneMockup.removeEventListener('mouseenter', onEnter);
+        phoneMockup.removeEventListener('mouseleave', onLeave);
+        document.removeEventListener('mousemove', updateParallax);
+      };
     }
 
     initParallax();
