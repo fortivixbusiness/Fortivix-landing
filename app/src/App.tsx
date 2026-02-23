@@ -10,6 +10,9 @@ import StepSecurityLicense from './components/StepSecurityLicense';
 import StepSkillsExperience from './components/StepSkillsExperience';
 import StepAvailability from './components/StepAvailability';
 import StepReviewSubmit from './components/StepReviewSubmit';
+import { useGuardOnboarding } from './hooks/useGuardOnboarding';
+import { supabase } from './lib/supabase';
+import type { Session, AuthChangeEvent } from '@supabase/supabase-js';
 
 // Zod Schema
 const onboardingSchema = z.object({
@@ -17,37 +20,52 @@ const onboardingSchema = z.object({
   lastName: z.string().min(2, "Last name is required"),
   email: z.string().email("Invalid email address"),
   phone: z.string().min(10, "Valid phone number required"),
-  dob: z.string().min(1, "Date of birth is required"),
+  dob: z.string().min(1, "Date of birth is required").refine((val) => {
+    const dobDate = new Date(val);
+    if (isNaN(dobDate.getTime())) return false;
+    const today = new Date();
+    let age = today.getFullYear() - dobDate.getFullYear();
+    const m = today.getMonth() - dobDate.getMonth();
+    if (m < 0 || (m === 0 && today.getDate() < dobDate.getDate())) {
+      age--;
+    }
+    return age >= 18 && age <= 85;
+  }, "Must be a valid date, age 18+, and <= 85"),
   street: z.string().min(1, "Street address is required"),
   city: z.string().min(1, "City is required"),
   state: z.string().min(2, "State is required"),
   zip: z.string().min(5, "ZIP code is required"),
 
-  idFront: z.any().optional(), // In production, handle File validations
-  idBack: z.any().optional(),
-  selfie: z.any().optional(),
+  idFront: z.any().refine(val => val !== undefined && val !== null && val !== '', "ID Front photo is required"),
+  idBack: z.any().refine(val => val !== undefined && val !== null && val !== '', "ID Back photo is required"),
+  selfie: z.any().refine(val => val !== undefined && val !== null && val !== '', "Selfie photo is required"),
 
   licenseNumber: z.string().min(1, "License number is required"),
   licenseState: z.string().min(2, "Issuing state is required"),
-  licenseExpiry: z.string().min(1, "Expiration date is required"),
-  licensePhoto: z.any().optional(),
+  licenseExpiry: z.string().min(1, "Expiration date is required").refine((val) => {
+    const expDate = new Date(val);
+    if (isNaN(expDate.getTime())) return false;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return expDate >= today;
+  }, "Cannot be a past date"),
+  licensePhoto: z.any().refine(val => val !== undefined && val !== null && val !== '', "License photo is required"),
 
   experienceYears: z.string().min(1, "Experience is required"),
   skills: z.array(z.string()).min(1, "Select at least one skill"),
-  certifications: z.array(z.string()),
-  languages: z.array(z.string()),
+  certifications: z.array(z.string()).optional().default([]),
+  languages: z.array(z.string()).optional().default([]),
 
   availableDays: z.array(z.string()).min(1, "Select at least one available day"),
   preferredShifts: z.array(z.string()).min(1, "Select preferred shifts"),
-  serviceRadius: z.string(),
+  serviceRadius: z.string().optional().default("25"),
   bio: z.string().optional(),
 
   consentBackground: z.boolean().refine(val => val === true, "Must consent to background check"),
   consentTerms: z.boolean().refine(val => val === true, "Must agree to terms"),
 });
 
-type OnboardingFormData = z.infer<typeof onboardingSchema>;
-
+// We use `any` in useForm due to complex generic inference from z.default() arrays
 const STEPS = [
   { id: 1, title: 'Personal Info', icon: User },
   { id: 2, title: 'ID Verification', icon: CreditCard },
@@ -58,10 +76,25 @@ const STEPS = [
 ];
 
 export default function App() {
-  const [currentStep, setCurrentStep] = useState(1);
-  const [isSubmitted, setIsSubmitted] = useState(false);
+  const [session, setSession] = useState<Session | null>(null);
 
-  const methods = useForm<OnboardingFormData>({
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => setSession(session));
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_e: AuthChangeEvent, session: Session | null) => setSession(session));
+    return () => subscription.unsubscribe();
+  }, []);
+
+  const userId = session?.user?.id;
+
+  const {
+    currentStep,
+    isSubmitted,
+    submitApplication,
+    nextStep: incrementStep,
+    prevStep
+  } = useGuardOnboarding(userId);
+
+  const methods = useForm<any>({
     resolver: zodResolver(onboardingSchema),
     mode: 'onTouched',
     defaultValues: {
@@ -77,58 +110,51 @@ export default function App() {
 
   // Auto-save to LocalStorage
   useEffect(() => {
-    const saved = localStorage.getItem('fortivixOnboardingDraft');
+    if (!userId) return;
+    const saved = localStorage.getItem(`guard_onboarding_form_data_${userId}`);
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
         methods.reset(parsed.data);
-        if (parsed.step) setCurrentStep(parsed.step);
       } catch (e) {
         console.error("Failed to parse draft", e);
       }
     }
-  }, [methods]);
+  }, [methods, userId]);
 
   useEffect(() => {
+    if (!userId) return;
     const subscription = methods.watch((value) => {
-      localStorage.setItem('fortivixOnboardingDraft', JSON.stringify({
+      localStorage.setItem(`guard_onboarding_form_data_${userId}`, JSON.stringify({
         data: value,
         step: currentStep
       }));
     });
     return () => subscription.unsubscribe();
-  }, [methods.watch, currentStep]);
+  }, [methods.watch, currentStep, userId]);
 
   const nextStep = async () => {
     // Validate current step fields before proceeding
     let fieldsToValidate: any = [];
     if (currentStep === 1) fieldsToValidate = ['firstName', 'lastName', 'email', 'phone', 'dob', 'street', 'city', 'state', 'zip'];
-    if (currentStep === 2) fieldsToValidate = []; // Add specific ID fields if making them required
-    if (currentStep === 3) fieldsToValidate = ['licenseNumber', 'licenseState', 'licenseExpiry'];
+    if (currentStep === 2) fieldsToValidate = ['idFront', 'idBack', 'selfie'];
+    if (currentStep === 3) fieldsToValidate = ['licenseNumber', 'licenseState', 'licenseExpiry', 'licensePhoto'];
     if (currentStep === 4) fieldsToValidate = ['experienceYears', 'skills'];
     if (currentStep === 5) fieldsToValidate = ['availableDays', 'preferredShifts'];
 
     const isValid = await methods.trigger(fieldsToValidate);
     if (isValid) {
-      setCurrentStep(s => Math.min(s + 1, 6));
-      window.scrollTo(0, 0);
+      incrementStep();
     }
   };
 
-  const prevStep = () => {
-    setCurrentStep(s => Math.max(s - 1, 1));
-    window.scrollTo(0, 0);
-  };
-
-  const onSubmit = async (data: OnboardingFormData) => {
-    // Here we would typically send to Supabase
-    console.log("Submitting to Supabase:", data);
-
-    // Simulate API call
-    await new Promise(r => setTimeout(r, 1500));
-
-    localStorage.removeItem('fortivixOnboardingDraft');
-    setIsSubmitted(true);
+  const onSubmit = async (data: any) => {
+    try {
+      await submitApplication(data);
+    } catch (e: any) {
+      console.error("Submission error:", e);
+      alert(`We encountered an issue submitting your application. Please try again later.`);
+    }
   };
 
   if (isSubmitted) {

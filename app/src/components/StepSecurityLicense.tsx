@@ -2,7 +2,7 @@ import { useFormContext } from 'react-hook-form';
 import { Shield, MapPin, Calendar, Camera } from 'lucide-react';
 
 export default function StepSecurityLicense() {
-    const { register, watch, formState: { errors } } = useFormContext();
+    const { register, watch, setValue, formState: { errors } } = useFormContext();
     const file = watch('licensePhoto');
 
     return (
@@ -68,14 +68,21 @@ export default function StepSecurityLicense() {
                         <div className="flex flex-col items-center justify-center">
                             <Camera className="w-6 h-6 text-slate-400 mb-2" />
                             <span className="text-sm font-medium text-slate-300">
-                                {file && file.length > 0 ? file[0].name : 'Click to attach image'}
+                                {file instanceof File ? file.name : (file && file.length > 0 && file[0] instanceof File ? file[0].name : 'Click to attach image')}
                             </span>
                         </div>
                         <input
                             type="file"
-                            {...register('licensePhoto')}
                             className="hidden"
-                            accept="image/*"
+                            accept=".jpg,.jpeg,.png,.webp"
+                            onChange={(e) => {
+                                const selected = e.target.files?.[0];
+                                if (selected) {
+                                    setValue('licensePhoto', selected, { shouldValidate: true });
+                                } else {
+                                    setValue('licensePhoto', null, { shouldValidate: true })
+                                }
+                            }}
                         />
                     </label>
                 </div>
