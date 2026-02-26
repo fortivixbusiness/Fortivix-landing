@@ -1,283 +1,251 @@
-import { useState, useEffect } from 'react';
-import { useForm, FormProvider } from 'react-hook-form';
+import { useState } from 'react';
+import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { Shield, User, CreditCard, Briefcase, Calendar, CheckCircle } from 'lucide-react';
-
-import StepPersonalInfo from './components/StepPersonalInfo';
-import StepIdVerification from './components/StepIdVerification';
-import StepSecurityLicense from './components/StepSecurityLicense';
-import StepSkillsExperience from './components/StepSkillsExperience';
-import StepAvailability from './components/StepAvailability';
-import StepReviewSubmit from './components/StepReviewSubmit';
-import { useGuardOnboarding } from './hooks/useGuardOnboarding';
+import { Shield, CheckCircle, Loader2 } from 'lucide-react';
 import { supabase } from './lib/supabase';
-import type { Session, AuthChangeEvent } from '@supabase/supabase-js';
 
-// Zod Schema
-const onboardingSchema = z.object({
-  firstName: z.string().min(2, "First name is required"),
-  lastName: z.string().min(2, "Last name is required"),
-  email: z.string().email("Invalid email address"),
-  phone: z.string().min(10, "Valid phone number required"),
-  dob: z.string().min(1, "Date of birth is required").refine((val) => {
-    const dobDate = new Date(val);
-    if (isNaN(dobDate.getTime())) return false;
-    const today = new Date();
-    let age = today.getFullYear() - dobDate.getFullYear();
-    const m = today.getMonth() - dobDate.getMonth();
-    if (m < 0 || (m === 0 && today.getDate() < dobDate.getDate())) {
-      age--;
-    }
-    return age >= 18 && age <= 85;
-  }, "Must be a valid date, age 18+, and <= 85"),
-  street: z.string().min(1, "Street address is required"),
-  city: z.string().min(1, "City is required"),
-  state: z.string().min(2, "State is required"),
-  zip: z.string().min(5, "ZIP code is required"),
-
-  idFront: z.any().refine(val => val !== undefined && val !== null && val !== '', "ID Front photo is required"),
-  idBack: z.any().refine(val => val !== undefined && val !== null && val !== '', "ID Back photo is required"),
-  selfie: z.any().refine(val => val !== undefined && val !== null && val !== '', "Selfie photo is required"),
-
-  licenseNumber: z.string().min(1, "License number is required"),
-  licenseState: z.string().min(2, "Issuing state is required"),
-  licenseExpiry: z.string().min(1, "Expiration date is required").refine((val) => {
-    const expDate = new Date(val);
-    if (isNaN(expDate.getTime())) return false;
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    return expDate >= today;
-  }, "Cannot be a past date"),
-  licensePhoto: z.any().refine(val => val !== undefined && val !== null && val !== '', "License photo is required"),
-
-  experienceYears: z.string().min(1, "Experience is required"),
-  skills: z.array(z.string()).min(1, "Select at least one skill"),
-  certifications: z.array(z.string()).optional().default([]),
-  languages: z.array(z.string()).optional().default([]),
-
-  availableDays: z.array(z.string()).min(1, "Select at least one available day"),
-  preferredShifts: z.array(z.string()).min(1, "Select preferred shifts"),
-  serviceRadius: z.string().optional().default("25"),
-  bio: z.string().optional(),
-
-  consentBackground: z.boolean().refine(val => val === true, "Must consent to background check"),
-  consentTerms: z.boolean().refine(val => val === true, "Must agree to terms"),
+const guardSchema = z.object({
+  firstName: z.string().min(2, 'First name is required'),
+  middleName: z.string(),
+  lastName: z.string().min(2, 'Last name is required'),
+  licenseNumber: z.string().min(1, 'License number is required'),
+  email: z.string().email('Invalid email address'),
 });
 
-// We use `any` in useForm due to complex generic inference from z.default() arrays
-const STEPS = [
-  { id: 1, title: 'Personal Info', icon: User },
-  { id: 2, title: 'ID Verification', icon: CreditCard },
-  { id: 3, title: 'Security License', icon: Shield },
-  { id: 4, title: 'Skills', icon: Briefcase },
-  { id: 5, title: 'Availability', icon: Calendar },
-  { id: 6, title: 'Review', icon: CheckCircle },
-];
+type GuardFormData = z.infer<typeof guardSchema>;
 
 export default function App() {
-  const [session, setSession] = useState<Session | null>(null);
-
-  useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => setSession(session));
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_e: AuthChangeEvent, session: Session | null) => setSession(session));
-    return () => subscription.unsubscribe();
-  }, []);
-
-  const userId = session?.user?.id;
+  const [isSubmitted, setIsSubmitted] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   const {
-    currentStep,
-    isSubmitted,
-    submitApplication,
-    nextStep: incrementStep,
-    prevStep
-  } = useGuardOnboarding(userId);
-
-  const methods = useForm<any>({
-    resolver: zodResolver(onboardingSchema),
+    register,
+    handleSubmit,
+    formState: { errors, isSubmitting },
+  } = useForm<GuardFormData>({
+    resolver: zodResolver(guardSchema) as any,
     mode: 'onTouched',
     defaultValues: {
-      skills: [],
-      certifications: [],
-      languages: [],
-      availableDays: [],
-      preferredShifts: [],
-      experienceYears: "",
-      serviceRadius: "50",
-    }
+      firstName: '',
+      middleName: '',
+      lastName: '',
+      licenseNumber: '',
+      email: '',
+    },
   });
 
-  // Auto-save to LocalStorage
-  useEffect(() => {
-    if (!userId) return;
-    const saved = localStorage.getItem(`guard_onboarding_form_data_${userId}`);
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        methods.reset(parsed.data);
-      } catch (e) {
-        console.error("Failed to parse draft", e);
-      }
-    }
-  }, [methods, userId]);
-
-  useEffect(() => {
-    if (!userId) return;
-    const subscription = methods.watch((value) => {
-      localStorage.setItem(`guard_onboarding_form_data_${userId}`, JSON.stringify({
-        data: value,
-        step: currentStep
-      }));
-    });
-    return () => subscription.unsubscribe();
-  }, [methods.watch, currentStep, userId]);
-
-  const nextStep = async () => {
-    // Validate current step fields before proceeding
-    let fieldsToValidate: any = [];
-    if (currentStep === 1) fieldsToValidate = ['firstName', 'lastName', 'email', 'phone', 'dob', 'street', 'city', 'state', 'zip'];
-    if (currentStep === 2) fieldsToValidate = ['idFront', 'idBack', 'selfie'];
-    if (currentStep === 3) fieldsToValidate = ['licenseNumber', 'licenseState', 'licenseExpiry', 'licensePhoto'];
-    if (currentStep === 4) fieldsToValidate = ['experienceYears', 'skills'];
-    if (currentStep === 5) fieldsToValidate = ['availableDays', 'preferredShifts'];
-
-    const isValid = await methods.trigger(fieldsToValidate);
-    if (isValid) {
-      incrementStep();
-    }
-  };
-
-  const onSubmit = async (data: any) => {
+  const onSubmit = async (data: GuardFormData) => {
+    setSubmitError(null);
     try {
-      await submitApplication(data);
+      const { error } = await supabase
+        .from('guard_applications')
+        .insert({
+          first_name: data.firstName,
+          middle_name: data.middleName || null,
+          last_name: data.lastName,
+          license_number: data.licenseNumber,
+          email: data.email,
+        });
+
+      if (error) throw error;
+      setIsSubmitted(true);
     } catch (e: any) {
-      console.error("Submission error:", e);
-      alert(`We encountered an issue submitting your application. Please try again later.`);
+      console.error('Submission error:', e);
+      setSubmitError(e.message || 'Something went wrong. Please try again.');
     }
   };
 
   if (isSubmitted) {
     return (
-      <div className="hero flex items-center justify-center min-h-screen">
-        <div className="text-center bg-card-dark p-12 rounded-2xl border border-dark-hover max-w-md w-full">
-          <CheckCircle className="w-20 h-20 text-green-400 mx-auto mb-6" />
-          <h2 className="text-3xl font-display font-bold mb-4">Application Submitted!</h2>
-          <p className="text-slate-400 mb-8">
-            Thank you for applying to the Fortivix network. Our compliance team will review your credentials within 24-48 hours.
+      <div className="flex items-center justify-center min-h-screen" style={{ background: 'var(--slate-950)' }}>
+        <div className="text-center p-12 rounded-2xl border max-w-md w-full" style={{ background: 'var(--slate-900)', borderColor: 'rgba(255,255,255,0.1)' }}>
+          <CheckCircle className="w-20 h-20 mx-auto mb-6" style={{ color: '#4ade80' }} />
+          <h2 className="text-3xl font-bold mb-4" style={{ color: 'white', fontFamily: 'var(--font-display)' }}>Application Submitted!</h2>
+          <p className="mb-8" style={{ color: 'var(--slate-400)' }}>
+            Thank you for applying to the Fortivix network. We'll review your information and get back to you shortly.
           </p>
-          <a href="/" className="btn-primary w-full">Return Home</a>
+          <a
+            href="/"
+            style={{
+              display: 'inline-block',
+              padding: '14px 32px',
+              borderRadius: '12px',
+              fontWeight: 600,
+              color: 'white',
+              background: 'linear-gradient(135deg, var(--purple-600), var(--indigo-600))',
+              textDecoration: 'none',
+            }}
+          >
+            Return Home
+          </a>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen pb-20">
-      {/* Navigation matching original */}
-      <nav className="fixed top-0 w-full z-50 bg-[#060a14]/80 backdrop-blur-md border-b border-white/5 py-4">
-        <div className="max-w-7xl mx-auto px-6 flex items-center justify-between">
-          <a href="/" className="flex items-center gap-2 font-display text-xl font-bold tracking-tight text-white no-underline">
-            <Shield className="w-8 h-8 text-purple-500" />
+    <div style={{ minHeight: '100vh', background: 'var(--slate-950)' }}>
+      {/* Nav */}
+      <nav style={{
+        position: 'fixed', top: 0, width: '100%', zIndex: 50,
+        background: 'rgba(6,10,20,0.8)', backdropFilter: 'blur(12px)',
+        borderBottom: '1px solid rgba(255,255,255,0.05)', padding: '16px 0',
+      }}>
+        <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '0 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <a href="/" style={{ display: 'flex', alignItems: 'center', gap: '8px', textDecoration: 'none', color: 'white', fontFamily: 'var(--font-display)', fontSize: '1.25rem', fontWeight: 700 }}>
+            <Shield style={{ width: 32, height: 32, color: 'var(--purple-500)' }} />
             <span>Fortivix</span>
           </a>
-          <a href="/" className="px-5 py-2.5 rounded-full text-sm font-semibold bg-white/5 text-slate-300 border border-white/10 hover:bg-white/10 hover:text-white transition-all">Back to Home</a>
+          <a href="/" style={{
+            padding: '10px 20px', borderRadius: '100px', fontSize: '0.875rem', fontWeight: 600,
+            background: 'rgba(255,255,255,0.05)', color: 'var(--slate-300)',
+            border: '1px solid rgba(255,255,255,0.1)', textDecoration: 'none',
+          }}>
+            Back to Home
+          </a>
         </div>
       </nav>
 
-      {/* Hero Section */}
-      <section className="hero pt-32 pb-12" style={{ minHeight: 'auto' }}>
-        <div className="hero-grid-bg"></div>
-        <div className="container relative z-10">
-          <div className="text-center max-w-3xl mx-auto mb-12">
-            <h1 className="font-display text-4xl font-bold mb-4">
-              Complete Your <span className="gradient-text">Guard Profile</span>
+      {/* Form Section */}
+      <section style={{ paddingTop: '140px', paddingBottom: '80px' }}>
+        <div style={{ maxWidth: '560px', margin: '0 auto', padding: '0 24px' }}>
+          <div style={{ textAlign: 'center', marginBottom: '40px' }}>
+            <h1 style={{ fontFamily: 'var(--font-display)', fontSize: '2.25rem', fontWeight: 700, color: 'white', marginBottom: '12px' }}>
+              Join as a <span style={{ background: 'linear-gradient(135deg, var(--purple-400), var(--blue-500))', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>Security Guard</span>
             </h1>
-            <p className="text-slate-400 text-lg">
-              Join the future of private security. Please provide accurate information to expedite your background check.
+            <p style={{ color: 'var(--slate-400)', fontSize: '1.05rem' }}>
+              Get started by providing your basic information and license details.
             </p>
           </div>
 
-          {/* Progress Bar & Form Container */}
-          <div className="max-w-4xl mx-auto">
-            {/* Progress UI */}
-            <div className="mb-8">
-              <div className="flex justify-between relative">
-                <div className="absolute top-1/2 left-0 w-full h-1 bg-slate-800 -z-10 -translate-y-1/2 rounded"></div>
-                <div
-                  className="absolute top-1/2 left-0 h-1 bg-gradient-to-r from-purple-600 to-indigo-600 -z-10 -translate-y-1/2 rounded transition-all duration-500"
-                  style={{ width: `${((currentStep - 1) / 5) * 100}%` }}
-                ></div>
+          <div style={{
+            background: 'rgba(15,23,42,0.6)', backdropFilter: 'blur(20px)',
+            border: '1px solid rgba(255,255,255,0.1)', borderRadius: '20px',
+            padding: '40px',
+          }}>
+            <form onSubmit={handleSubmit(onSubmit)}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                {/* First Name */}
+                <div>
+                  <label style={{ display: 'block', color: 'var(--slate-300)', fontSize: '0.875rem', fontWeight: 600, marginBottom: '6px' }}>
+                    First Name <span style={{ color: '#ef4444' }}>*</span>
+                  </label>
+                  <input
+                    {...register('firstName')}
+                    placeholder="John"
+                    style={{
+                      width: '100%', padding: '12px 16px', borderRadius: '12px',
+                      background: 'var(--slate-900)', border: '1px solid rgba(255,255,255,0.1)',
+                      color: 'white', fontSize: '0.95rem', outline: 'none',
+                    }}
+                  />
+                  {errors.firstName && <p style={{ color: '#ef4444', fontSize: '0.8rem', marginTop: '4px' }}>{errors.firstName.message}</p>}
+                </div>
 
-                {STEPS.map((step) => {
-                  const Icon = step.icon;
-                  const isActive = currentStep === step.id;
-                  const isCompleted = currentStep > step.id;
+                {/* Middle Name */}
+                <div>
+                  <label style={{ display: 'block', color: 'var(--slate-300)', fontSize: '0.875rem', fontWeight: 600, marginBottom: '6px' }}>
+                    Middle Name
+                  </label>
+                  <input
+                    {...register('middleName')}
+                    placeholder="(Optional)"
+                    style={{
+                      width: '100%', padding: '12px 16px', borderRadius: '12px',
+                      background: 'var(--slate-900)', border: '1px solid rgba(255,255,255,0.1)',
+                      color: 'white', fontSize: '0.95rem', outline: 'none',
+                    }}
+                  />
+                </div>
 
-                  return (
-                    <div key={step.id} className="flex flex-col items-center gap-2">
-                      <div className={`w-10 h-10 rounded-full flex items-center justify-center border-2 transition-colors ${isActive ? 'bg-indigo-600 border-indigo-400 text-white' :
-                        isCompleted ? 'bg-purple-600 border-purple-600 text-white' :
-                          'bg-slate-900 border-slate-700 text-slate-500'
-                        }`}>
-                        <Icon className="w-5 h-5" />
-                      </div>
-                      <span className={`text-xs font-semibold hidden sm:block ${isActive || isCompleted ? 'text-white' : 'text-slate-500'}`}>
-                        {step.title}
-                      </span>
-                    </div>
-                  );
-                })}
+                {/* Last Name */}
+                <div>
+                  <label style={{ display: 'block', color: 'var(--slate-300)', fontSize: '0.875rem', fontWeight: 600, marginBottom: '6px' }}>
+                    Last Name <span style={{ color: '#ef4444' }}>*</span>
+                  </label>
+                  <input
+                    {...register('lastName')}
+                    placeholder="Doe"
+                    style={{
+                      width: '100%', padding: '12px 16px', borderRadius: '12px',
+                      background: 'var(--slate-900)', border: '1px solid rgba(255,255,255,0.1)',
+                      color: 'white', fontSize: '0.95rem', outline: 'none',
+                    }}
+                  />
+                  {errors.lastName && <p style={{ color: '#ef4444', fontSize: '0.8rem', marginTop: '4px' }}>{errors.lastName.message}</p>}
+                </div>
+
+                {/* License Number */}
+                <div>
+                  <label style={{ display: 'block', color: 'var(--slate-300)', fontSize: '0.875rem', fontWeight: 600, marginBottom: '6px' }}>
+                    License Number <span style={{ color: '#ef4444' }}>*</span>
+                  </label>
+                  <input
+                    {...register('licenseNumber')}
+                    placeholder="e.g. G-12345678"
+                    style={{
+                      width: '100%', padding: '12px 16px', borderRadius: '12px',
+                      background: 'var(--slate-900)', border: '1px solid rgba(255,255,255,0.1)',
+                      color: 'white', fontSize: '0.95rem', outline: 'none',
+                    }}
+                  />
+                  {errors.licenseNumber && <p style={{ color: '#ef4444', fontSize: '0.8rem', marginTop: '4px' }}>{errors.licenseNumber.message}</p>}
+                </div>
+
+                {/* Email */}
+                <div>
+                  <label style={{ display: 'block', color: 'var(--slate-300)', fontSize: '0.875rem', fontWeight: 600, marginBottom: '6px' }}>
+                    Email <span style={{ color: '#ef4444' }}>*</span>
+                  </label>
+                  <input
+                    {...register('email')}
+                    type="email"
+                    placeholder="john@example.com"
+                    style={{
+                      width: '100%', padding: '12px 16px', borderRadius: '12px',
+                      background: 'var(--slate-900)', border: '1px solid rgba(255,255,255,0.1)',
+                      color: 'white', fontSize: '0.95rem', outline: 'none',
+                    }}
+                  />
+                  {errors.email && <p style={{ color: '#ef4444', fontSize: '0.8rem', marginTop: '4px' }}>{errors.email.message}</p>}
+                </div>
+
+                {/* Error message */}
+                {submitError && (
+                  <div style={{
+                    padding: '12px 16px', borderRadius: '12px',
+                    background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)',
+                    color: '#ef4444', fontSize: '0.875rem',
+                  }}>
+                    {submitError}
+                  </div>
+                )}
+
+                {/* Submit */}
+                <button
+                  type="submit"
+                  disabled={isSubmitting}
+                  style={{
+                    width: '100%', padding: '14px', borderRadius: '12px',
+                    fontWeight: 700, fontSize: '1rem', color: 'white', border: 'none', cursor: 'pointer',
+                    background: isSubmitting ? 'var(--slate-700)' : 'linear-gradient(135deg, var(--purple-600), var(--indigo-600))',
+                    opacity: isSubmitting ? 0.7 : 1,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
+                    marginTop: '8px',
+                  }}
+                >
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 style={{ width: 18, height: 18, animation: 'spin 1s linear infinite' }} />
+                      Submitting...
+                    </>
+                  ) : (
+                    'Submit Application'
+                  )}
+                </button>
               </div>
-            </div>
-
-            {/* Form Area */}
-            <div className="bg-[#0f172a]/60 backdrop-blur-xl border border-white/10 rounded-2xl p-6 sm:p-10 shadow-2xl">
-              <FormProvider {...methods}>
-                <form onSubmit={methods.handleSubmit(onSubmit)} className="space-y-6">
-
-                  {/* Step Contents */}
-                  <div className="min-h-[400px]">
-                    {currentStep === 1 && <StepPersonalInfo />}
-                    {currentStep === 2 && <StepIdVerification />}
-                    {currentStep === 3 && <StepSecurityLicense />}
-                    {currentStep === 4 && <StepSkillsExperience />}
-                    {currentStep === 5 && <StepAvailability />}
-                    {currentStep === 6 && <StepReviewSubmit />}
-                  </div>
-
-                  {/* Navigation Buttons */}
-                  <div className="flex justify-between pt-6 border-t border-white/10 mt-8">
-                    <button
-                      type="button"
-                      onClick={prevStep}
-                      disabled={currentStep === 1}
-                      className="px-6 py-3 rounded-xl font-semibold opacity-80 hover:opacity-100 disabled:opacity-30 disabled:cursor-not-allowed bg-slate-800 text-white transition-all"
-                    >
-                      Back
-                    </button>
-
-                    {currentStep < 6 ? (
-                      <button
-                        type="button"
-                        onClick={nextStep}
-                        className="btn-primary"
-                      >
-                        Continue to Next Step
-                      </button>
-                    ) : (
-                      <button
-                        type="submit"
-                        disabled={methods.formState.isSubmitting}
-                        className="btn-primary group"
-                      >
-                        {methods.formState.isSubmitting ? 'Submitting...' : 'Submit Final Application'}
-                      </button>
-                    )}
-                  </div>
-                </form>
-              </FormProvider>
-            </div>
+            </form>
           </div>
         </div>
       </section>
