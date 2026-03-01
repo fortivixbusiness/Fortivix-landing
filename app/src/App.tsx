@@ -10,18 +10,18 @@ const guardSchema = z.object({
   middleName: z.string().min(1, 'Middle name is required'),
   lastName: z.string().min(2, 'Last name is required'),
   licenseNumber: z.string().min(1, 'License number is required').refine((val) => {
-    // Exactly 8 digits
-    if (/^\d{8}$/.test(val)) return true;
-    // Exactly 9 characters containing exactly 1 letter and 8 digits (e.g., A12345678, 12345678A)
+    // Exactly 7 digits
+    if (/^\d{7}$/.test(val)) return true;
+    // Exactly 8 characters containing exactly 1 letter and 7 digits (e.g., A1234567, 1234567A)
     // letters and numbers only, no spaces or special characters
-    if (/^[A-Za-z0-9]{9}$/.test(val)) {
+    if (/^[A-Za-z0-9]{8}$/.test(val)) {
       const letters = val.match(/[A-Za-z]/g);
       const numbers = val.match(/[0-9]/g);
-      return letters?.length === 1 && numbers?.length === 8;
+      return letters?.length === 1 && numbers?.length === 7;
     }
     return false;
   }, {
-    message: 'Enter a valid license number (8 digits, or 1 letter + 8 digits).',
+    message: 'Enter a valid license number (7 digits, or 1 letter + 7 digits).',
   }),
   email: z.string().min(1, 'Email is required').email('Invalid email address'),
 });
