@@ -7,10 +7,23 @@ import { supabase } from './lib/supabase';
 
 const guardSchema = z.object({
   firstName: z.string().min(2, 'First name is required'),
-  middleName: z.string(),
+  middleName: z.string().min(1, 'Middle name is required'),
   lastName: z.string().min(2, 'Last name is required'),
-  licenseNumber: z.string().min(1, 'License number is required'),
-  email: z.string().email('Invalid email address'),
+  licenseNumber: z.string().min(1, 'License number is required').refine((val) => {
+    // Exactly 8 digits
+    if (/^\d{8}$/.test(val)) return true;
+    // Exactly 9 characters containing exactly 1 letter and 8 digits (e.g., A12345678, 12345678A)
+    // letters and numbers only, no spaces or special characters
+    if (/^[A-Za-z0-9]{9}$/.test(val)) {
+      const letters = val.match(/[A-Za-z]/g);
+      const numbers = val.match(/[0-9]/g);
+      return letters?.length === 1 && numbers?.length === 8;
+    }
+    return false;
+  }, {
+    message: 'Enter a valid license number (8 digits, or 1 letter + 8 digits).',
+  }),
+  email: z.string().min(1, 'Email is required').email('Invalid email address'),
 });
 
 type GuardFormData = z.infer<typeof guardSchema>;
@@ -146,17 +159,18 @@ export default function App() {
                 {/* Middle Name */}
                 <div>
                   <label style={{ display: 'block', color: 'var(--slate-300)', fontSize: '0.875rem', fontWeight: 600, marginBottom: '6px' }}>
-                    Middle Name
+                    Middle Name <span style={{ color: '#ef4444' }}>*</span>
                   </label>
                   <input
                     {...register('middleName')}
-                    placeholder="(Optional)"
+                    placeholder="Middle name"
                     style={{
                       width: '100%', padding: '12px 16px', borderRadius: '12px',
                       background: 'var(--slate-900)', border: '1px solid rgba(255,255,255,0.1)',
                       color: 'white', fontSize: '0.95rem', outline: 'none',
                     }}
                   />
+                  {errors.middleName && <p style={{ color: '#ef4444', fontSize: '0.8rem', marginTop: '4px' }}>{errors.middleName.message}</p>}
                 </div>
 
                 {/* Last Name */}
